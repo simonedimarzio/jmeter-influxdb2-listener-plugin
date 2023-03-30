@@ -50,6 +50,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
     private static final String KEY_NODE_NAME = "nodeName";
     private static final String KEY_SAMPLERS_LIST = "samplersList";
     private static final String KEY_RECORD_SUB_SAMPLES = "recordSubSamples";
+    private static final String KEY_TIME_SHIFT = "timeShift";
 
     private final WritePrecision writePrecision = WritePrecision.MS;
 
@@ -63,6 +64,11 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
      * Scheduler for periodic metric aggregation.
      */
     private ScheduledThreadPoolExecutor scheduler;
+
+    /**
+     * Time shift in ms subtracted by timings.
+     */
+    private long timeShift;
 
     /**
      * Name of the test.
@@ -140,7 +146,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
                 sampleResultContext.setNodeName(this.nodeName);
                 sampleResultContext.setSampleResult(sampleResult);
                 sampleResultContext.setSamplerType(samplerType);
-                sampleResultContext.setTimeToSet(System.currentTimeMillis() * ONE_MS_IN_NANOSECONDS + this.getUniqueNumberForTheSamplerThread());
+                sampleResultContext.setTimeToSet(System.currentTimeMillis() * ONE_MS_IN_NANOSECONDS - this.timeShift + this.getUniqueNumberForTheSamplerThread());
                 sampleResultContext.setErrorBodyToBeSaved(context.getBooleanParameter(KEY_INCLUDE_BODY_OF_FAILURES, false));
                 sampleResultContext.setResponseBodyLength(this.influxDBConfig.getResponseBodyLength());
                 var sampleResultPointProvider = new SampleResultPointProvider(sampleResultContext);
@@ -179,10 +185,11 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
         this.runId = context.getParameter(KEY_RUN_ID, "R001"); //Will be used to compare performance of R001, R002, etc of 'Test'
         this.randomNumberGenerator = new SecureRandom ();
         this.nodeName = context.getParameter(KEY_NODE_NAME, "Test-Node");
+        this.timeShift = Long.parseLong(context.getParameter(KEY_TIME_SHIFT, "0"));
 
         this.setupInfluxClient(context);
 
-        Point setupPoint = Point.measurement(TestStartEndMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis(), writePrecision)
+        Point setupPoint = Point.measurement(TestStartEndMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis() - this.timeShift, writePrecision)
                 .addTag(TestStartEndMeasurement.Tags.TYPE, TestStartEndMeasurement.Values.STARTED)
                 .addTag(TestStartEndMeasurement.Tags.NODE_NAME, this.nodeName)
                 .addTag(TestStartEndMeasurement.Tags.RUN_ID, this.runId)
@@ -213,7 +220,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
 
         this.addVirtualUsersMetrics(0, 0, 0, 0, JMeterContextService.getThreadCounts().finishedThreads);
 
-        Point teardownPoint = Point.measurement(TestStartEndMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis(), writePrecision)
+        Point teardownPoint = Point.measurement(TestStartEndMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis() - this.timeShift, writePrecision)
                 .addTag(TestStartEndMeasurement.Tags.TYPE, TestStartEndMeasurement.Values.FINISHED)
                 .addTag(TestStartEndMeasurement.Tags.NODE_NAME, this.nodeName)
                 .addTag(TestStartEndMeasurement.Tags.RUN_ID, this.runId)
@@ -291,7 +298,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
      * Writes thread metrics.
      */
     private void addVirtualUsersMetrics(int minActiveThreads, int meanActiveThreads, int maxActiveThreads, int startedThreads, int finishedThreads) {
-        Point virtualUsersMetricsPoint = Point.measurement(VirtualUsersMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis(), writePrecision)
+        Point virtualUsersMetricsPoint = Point.measurement(VirtualUsersMeasurement.MEASUREMENT_NAME).time(System.currentTimeMillis() - this.timeShift, writePrecision)
                 .addField(VirtualUsersMeasurement.Fields.MIN_ACTIVE_THREADS, minActiveThreads)
                 .addField(VirtualUsersMeasurement.Fields.MAX_ACTIVE_THREADS, maxActiveThreads)
                 .addField(VirtualUsersMeasurement.Fields.MEAN_ACTIVE_THREADS, meanActiveThreads)
