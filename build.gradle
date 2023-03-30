@@ -137,7 +137,7 @@ publishing {
                         name = 'Uladzislau Shklianik'
                         email = 'Uladzislau_Shklianik@epam.com'
                     }
-i                    developer {
+                    developer {
                         id = 'MalshaUdani'
                         name = 'Malsha Nagahawatta'
                         email = 'malsha.nagahawatta@gmail.com'
