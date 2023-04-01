@@ -146,7 +146,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
                 sampleResultContext.setNodeName(this.nodeName);
                 sampleResultContext.setSampleResult(sampleResult);
                 sampleResultContext.setSamplerType(samplerType);
-                sampleResultContext.setTimeToSet(System.currentTimeMillis() * ONE_MS_IN_NANOSECONDS - this.timeShift + this.getUniqueNumberForTheSamplerThread());
+                sampleResultContext.setTimeToSet((System.currentTimeMillis() - this.timeShift) * ONE_MS_IN_NANOSECONDS + this.getUniqueNumberForTheSamplerThread());
                 sampleResultContext.setErrorBodyToBeSaved(context.getBooleanParameter(KEY_INCLUDE_BODY_OF_FAILURES, false));
                 sampleResultContext.setResponseBodyLength(this.influxDBConfig.getResponseBodyLength());
                 var sampleResultPointProvider = new SampleResultPointProvider(sampleResultContext);
