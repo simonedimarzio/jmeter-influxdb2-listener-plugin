@@ -20,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
@@ -50,7 +52,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
     private static final String KEY_NODE_NAME = "nodeName";
     private static final String KEY_SAMPLERS_LIST = "samplersList";
     private static final String KEY_RECORD_SUB_SAMPLES = "recordSubSamples";
-    private static final String KEY_TIME_SHIFT = "timeShift";
+    private static final String KEY_TIME_SHIFT_TARGET = "timeShiftTarget";
 
     private final WritePrecision writePrecision = WritePrecision.MS;
 
@@ -175,6 +177,7 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
         arguments.addArgument(KEY_RECORD_SUB_SAMPLES, "true");
         arguments.addArgument(KEY_INCLUDE_BODY_OF_FAILURES, "true");
         arguments.addArgument(InfluxDBConfig.KEY_RESPONSE_BODY_LENGTH, Integer.toString(InfluxDBConfig.DEFAULT_RESPONSE_BODY_LENGTH));
+        arguments.addArgument(KEY_TIME_SHIFT_TARGET, "#2023-04-01 00:00:00 CEST   // remove dash to enable start time override (yyyy-MM-dd HH:mm:ss z)");
 
         return arguments;
     }
@@ -185,7 +188,20 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
         this.runId = context.getParameter(KEY_RUN_ID, "R001"); //Will be used to compare performance of R001, R002, etc of 'Test'
         this.randomNumberGenerator = new SecureRandom ();
         this.nodeName = context.getParameter(KEY_NODE_NAME, "Test-Node");
-        this.timeShift = Long.parseLong(context.getParameter(KEY_TIME_SHIFT, "0"));
+
+        this.timeShift = 0;
+        try {
+            String timeShiftTarget = context.getParameter(KEY_TIME_SHIFT_TARGET, "");
+            if (timeShiftTarget != null && !timeShiftTarget.trim().isEmpty() && !timeShiftTarget.trim().startsWith("#")) {
+                Date timeShiftTargetParsed = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").parse(timeShiftTarget.split("//")[0].trim());
+                this.timeShift = new Date().getTime() - timeShiftTargetParsed.getTime();
+                this.LOGGER.info("Time shift target is '" + timeShiftTarget.split("//")[0].trim() + "' (epoch " + timeShiftTargetParsed.getTime() + ")");
+            } else {
+                this.LOGGER.info("Time shift not enabled");
+            }
+        } catch (Exception e) {
+            LOGGER.error("Invalid 'timeShiftTarget': " + e);
+        }
 
         this.setupInfluxClient(context);
 
